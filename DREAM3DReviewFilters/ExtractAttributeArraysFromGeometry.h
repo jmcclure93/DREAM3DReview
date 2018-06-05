@@ -88,6 +88,9 @@ public:
   SIMPL_FILTER_PARAMETER(DataArrayPath, SharedVertexListArrayPath4)
   Q_PROPERTY(DataArrayPath SharedVertexListArrayPath4 READ getSharedVertexListArrayPath4 WRITE setSharedVertexListArrayPath4)
 
+  SIMPL_FILTER_PARAMETER(DataArrayPath, SharedVertexListArrayPath5)
+  Q_PROPERTY(DataArrayPath SharedVertexListArrayPath5 READ getSharedVertexListArrayPath5 WRITE setSharedVertexListArrayPath5)
+
   SIMPL_FILTER_PARAMETER(DataArrayPath, SharedEdgeListArrayPath)
   Q_PROPERTY(DataArrayPath SharedEdgeListArrayPath READ getSharedEdgeListArrayPath WRITE setSharedEdgeListArrayPath)
 
@@ -99,6 +102,9 @@ public:
 
   SIMPL_FILTER_PARAMETER(DataArrayPath, SharedTetListArrayPath)
   Q_PROPERTY(DataArrayPath SharedTetListArrayPath READ getSharedTetListArrayPath WRITE setSharedTetListArrayPath)
+
+  SIMPL_FILTER_PARAMETER(DataArrayPath, SharedHexListArrayPath)
+  Q_PROPERTY(DataArrayPath SharedHexListArrayPath READ getSharedHexListArrayPath WRITE setSharedHexListArrayPath)
 
   SIMPL_FILTER_PARAMETER(DataArrayPath, XBoundsArrayPath)
   Q_PROPERTY(DataArrayPath XBoundsArrayPath READ getXBoundsArrayPath WRITE setXBoundsArrayPath)
@@ -219,6 +225,7 @@ private:
   DEFINE_DATAARRAY_VARIABLE(int64_t, Tris)
   DEFINE_DATAARRAY_VARIABLE(int64_t, Quads)
   DEFINE_DATAARRAY_VARIABLE(int64_t, Tets)
+  DEFINE_DATAARRAY_VARIABLE(int64_t, Hexas)
 
 public:
   ExtractAttributeArraysFromGeometry(const ExtractAttributeArraysFromGeometry&) = delete; // Copy Constructor Not Implemented

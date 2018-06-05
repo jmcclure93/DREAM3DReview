@@ -43,6 +43,7 @@
 #include "SIMPLib/FilterParameters/DataArrayCreationFilterParameter.h"
 #include "SIMPLib/FilterParameters/LinkedDataContainerSelectionFilterParameter.h"
 #include "SIMPLib/Geometry/EdgeGeom.h"
+#include "SIMPLib/Geometry/HexahedralGeom.h"
 #include "SIMPLib/Geometry/ImageGeom.h"
 #include "SIMPLib/Geometry/QuadGeom.h"
 #include "SIMPLib/Geometry/RectGridGeom.h"
@@ -63,10 +64,12 @@ ExtractAttributeArraysFromGeometry::ExtractAttributeArraysFromGeometry()
 , m_SharedVertexListArrayPath2(SIMPL::Defaults::TriangleDataContainerName, SIMPL::Defaults::VertexAttributeMatrixName, "VertexCoordinates")
 , m_SharedVertexListArrayPath3(SIMPL::Defaults::QuadDataContainerName, SIMPL::Defaults::VertexAttributeMatrixName, "VertexCoordinates")
 , m_SharedVertexListArrayPath4(SIMPL::Defaults::TetrahedralDataContainerName, SIMPL::Defaults::VertexAttributeMatrixName, "VertexCoordinates")
+, m_SharedVertexListArrayPath5(SIMPL::Defaults::HexahedralDataContainerName, SIMPL::Defaults::VertexAttributeMatrixName, "VertexCoordinates")
 , m_SharedEdgeListArrayPath(SIMPL::Defaults::EdgeDataContainerName, SIMPL::Defaults::EdgeAttributeMatrixName, "EdgeConnectivity")
 , m_SharedTriListArrayPath(SIMPL::Defaults::TriangleDataContainerName, SIMPL::Defaults::FaceAttributeMatrixName, "TriangleConnectivity")
 , m_SharedQuadListArrayPath(SIMPL::Defaults::QuadDataContainerName, SIMPL::Defaults::FaceAttributeMatrixName, "QuadConnectivity")
 , m_SharedTetListArrayPath(SIMPL::Defaults::TetrahedralDataContainerName, SIMPL::Defaults::CellAttributeMatrixName, "TetConnectivity")
+, m_SharedHexListArrayPath(SIMPL::Defaults::HexahedralDataContainerName, SIMPL::Defaults::CellAttributeMatrixName, "HexConnectivity")
 , m_XBoundsArrayPath("", "", "XBounds")
 , m_YBoundsArrayPath("", "", "YBounds")
 , m_ZBoundsArrayPath("", "", "ZBounds")
@@ -78,6 +81,7 @@ ExtractAttributeArraysFromGeometry::ExtractAttributeArraysFromGeometry()
 , m_Tris(nullptr)
 , m_Quads(nullptr)
 , m_Tets(nullptr)
+, m_Hexas(nullptr)
 {
   initialize();
 }
@@ -116,11 +120,12 @@ void ExtractAttributeArraysFromGeometry::setupFilterParameters()
         "SharedVertexListArrayPath1", "SharedEdgeListArrayPath",                     // EdgeGeom
         "SharedVertexListArrayPath2", "SharedTriListArrayPath",                      // TriangleGeom
         "SharedVertexListArrayPath3", "SharedQuadListArrayPath",                     // QuadGeom
-        "SharedVertexListArrayPath4", "SharedTetListArrayPath",
-    }; // TetrahedralGeom
+        "SharedVertexListArrayPath4", "SharedTetListArrayPath",                      // TetrahedralGeom
+        "SharedVertexListArrayPath5", "SharedHexListArrayPath"
+    }; // HexahedralGeom
     parameter->setLinkedProperties(linkedProps);
     parameter->setCategory(FilterParameter::Parameter);
-    IGeometry::Types geomTypes = {IGeometry::Type::RectGrid, IGeometry::Type::Vertex, IGeometry::Type::Edge, IGeometry::Type::Triangle, IGeometry::Type::Quad, IGeometry::Type::Tetrahedral};
+    IGeometry::Types geomTypes = {IGeometry::Type::RectGrid, IGeometry::Type::Vertex, IGeometry::Type::Edge, IGeometry::Type::Triangle, IGeometry::Type::Quad, IGeometry::Type::Tetrahedral, IGeometry::Type::Hexahedral};
     parameter->setDefaultGeometryTypes(geomTypes);
     parameters.push_back(parameter);
   }
@@ -170,6 +175,14 @@ void ExtractAttributeArraysFromGeometry::setupFilterParameters()
     parameters.push_back(SIMPL_NEW_DA_CREATION_FP("Tetrahedral List", SharedTetListArrayPath, FilterParameter::RequiredArray, ExtractAttributeArraysFromGeometry, req,
                                                   static_cast<int32_t>(IGeometry::Type::Tetrahedral)));
   }
+  {
+    DataArrayCreationFilterParameter::RequirementType req = DataArrayCreationFilterParameter::CreateRequirement(AttributeMatrix::Type::Vertex, IGeometry::Type::Hexahedral);
+    parameters.push_back(SIMPL_NEW_DA_CREATION_FP("Shared Vertex List", SharedVertexListArrayPath5, FilterParameter::RequiredArray, ExtractAttributeArraysFromGeometry, req,
+      static_cast<int32_t>(IGeometry::Type::Hexahedral)));
+    req = DataArrayCreationFilterParameter::CreateRequirement(AttributeMatrix::Type::Cell, IGeometry::Type::Hexahedral);
+    parameters.push_back(SIMPL_NEW_DA_CREATION_FP("Hexahedral List", SharedHexListArrayPath, FilterParameter::RequiredArray, ExtractAttributeArraysFromGeometry, req,
+      static_cast<int32_t>(IGeometry::Type::Hexahedral)));
+  }
   setFilterParameters(parameters);
 }
 
@@ -185,10 +198,12 @@ void ExtractAttributeArraysFromGeometry::readFilterParameters(AbstractFilterPara
   setSharedVertexListArrayPath2(reader->readDataArrayPath("SharedVertexListArrayPath2", getSharedVertexListArrayPath2()));
   setSharedVertexListArrayPath3(reader->readDataArrayPath("SharedVertexListArrayPath3", getSharedVertexListArrayPath3()));
   setSharedVertexListArrayPath4(reader->readDataArrayPath("SharedVertexListArrayPath4", getSharedVertexListArrayPath4()));
+  setSharedVertexListArrayPath5(reader->readDataArrayPath("SharedVertexListArrayPath5", getSharedVertexListArrayPath5()));
   setSharedEdgeListArrayPath(reader->readDataArrayPath("SharedEdgeListArrayPath", getSharedEdgeListArrayPath()));
   setSharedTriListArrayPath(reader->readDataArrayPath("SharedTriListArrayPath", getSharedTriListArrayPath()));
   setSharedQuadListArrayPath(reader->readDataArrayPath("SharedQuadListArrayPath", getSharedQuadListArrayPath()));
   setSharedTetListArrayPath(reader->readDataArrayPath("SharedTetListArrayPath", getSharedTetListArrayPath()));
+  setSharedHexListArrayPath(reader->readDataArrayPath("SharedHexListArrayPath", getSharedHexListArrayPath()));
   setXBoundsArrayPath(reader->readDataArrayPath("XBoundsArrayPath", getXBoundsArrayPath()));
   setYBoundsArrayPath(reader->readDataArrayPath("YBoundsArrayPath", getYBoundsArrayPath()));
   setZBoundsArrayPath(reader->readDataArrayPath("ZBoundsArrayPath", getZBoundsArrayPath()));
@@ -437,6 +452,44 @@ void ExtractAttributeArraysFromGeometry::dataCheck()
 
     break;
   }
+  case IGeometry::Type::Hexahedral: // HexahedralGeom
+  {
+    HexahedralGeom::Pointer hex = std::static_pointer_cast<HexahedralGeom>(igeom);
+
+    QVector<IDataArray::Pointer> varrays;
+    QVector<IDataArray::Pointer> earrays;
+    varrays.push_back(hex->getVertices());
+    earrays.push_back(hex->getHexahedra());
+
+    QVector<size_t> cDims(1, 3);
+
+    m_VertsPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DataArray<float>, AbstractFilter, float>(this, getSharedVertexListArrayPath5(), 0, cDims);
+    if(m_VertsPtr.lock())
+    {
+      m_Verts = m_VertsPtr.lock()->getPointer(0);
+    }
+    if(getErrorCondition() >= 0)
+    {
+      varrays.push_back(m_VertsPtr.lock());
+    }
+
+    cDims[0] = 8;
+
+    m_HexasPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DataArray<int64_t>, AbstractFilter, int64_t>(this, getSharedHexListArrayPath(), 0, cDims);
+    if(m_HexasPtr.lock())
+    {
+      m_Hexas = m_HexasPtr.lock()->getPointer(0);
+    }
+    if(getErrorCondition() >= 0)
+    {
+      earrays.push_back(m_HexasPtr.lock());
+    }
+
+    getDataContainerArray()->validateNumberOfTuples<AbstractFilter>(this, varrays);
+    getDataContainerArray()->validateNumberOfTuples<AbstractFilter>(this, earrays);
+
+    break;
+  }
   default:
   {
     QString ss = QObject::tr("Selected Data Container (%1) does not contain a valid geometry\n"
@@ -569,6 +622,21 @@ void ExtractAttributeArraysFromGeometry::execute()
 
     std::memcpy(m_Verts, verts->getPointer(0), verts->getSize() * sizeof(float));
     std::memcpy(m_Tets, tets->getPointer(0), tets->getSize() * sizeof(int64_t));
+
+    break;
+  }
+  case IGeometry::Type::Hexahedral: // HexahedralGeom
+  {
+    HexahedralGeom::Pointer hex = std::static_pointer_cast<HexahedralGeom>(igeom);
+
+    SharedVertexList::Pointer verts = hex->getVertices();
+    SharedHexList::Pointer hexas = hex->getHexahedra();
+
+    assert(verts->getSize() == m_VertsPtr.lock()->getSize());
+    assert(hexas->getSize() == m_HexasPtr.lock()->getSize());
+
+    std::memcpy(m_Verts, verts->getPointer(0), verts->getSize() * sizeof(float));
+    std::memcpy(m_Hexas, hexas->getPointer(0), hexas->getSize() * sizeof(int64_t));
 
     break;
   }
